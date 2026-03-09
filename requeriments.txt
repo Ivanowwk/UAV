@@ -1,0 +1,7 @@
+mediapipe
+pyautogui
+numpy
+tensorflow
+scikit-learn
+pillow
+imutils

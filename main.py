@@ -1,65 +1,41 @@
 import cv2
-import mediapipe as mp
-import pyautogui
-import numpy as np
 
-# Inicializar mediapipe
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True)
+from utils.camara import iniciar_camara
+from age_model.age_predict import estimar_edad_emocion
+from gestures.face_gestures import detectar_gestos
 
-# Captura de cámara
-cam = cv2.VideoCapture(0)
 
-# Tamaño de pantalla
-screen_w, screen_h = pyautogui.size()
+def main():
 
-while True:
-    success, frame = cam.read()
-    if not success:
-        break
+    cap = iniciar_camara()
 
-    # Voltear imagen
-    frame = cv2.flip(frame, 1)
+    while True:
 
-    frame_h, frame_w, _ = frame.shape
+        ret, frame = cap.read()
 
-    # Convertir a RGB
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        if not ret:
+            break
 
-    # Procesar rostro
-    output = face_mesh.process(rgb_frame)
+        edad, emocion = estimar_edad_emocion(frame)
 
-    landmark_points = output.multi_face_landmarks
+        detectar_gestos(frame)
 
-    if landmark_points:
-        landmarks = landmark_points[0].landmark
+        if edad is not None:
+            cv2.putText(frame, f"Edad: {edad}", (20,40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0),2)
 
-        # Coordenadas del ojo derecho
-        for id, landmark in enumerate(landmarks[474:478]):
-            x = int(landmark.x * frame_w)
-            y = int(landmark.y * frame_h)
+        if emocion is not None:
+            cv2.putText(frame, f"Emocion: {emocion}", (20,80),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0),2)
 
-            cv2.circle(frame, (x, y), 3, (0,255,0))
+        cv2.imshow("AI Vision Control", frame)
 
-            if id == 1:
-                screen_x = int(screen_w * landmark.x)
-                screen_y = int(screen_h * landmark.y)
+        if cv2.waitKey(1) & 0xFF == 27:
+            break
 
-                pyautogui.moveTo(screen_x, screen_y)
+    cap.release()
+    cv2.destroyAllWindows()
 
-        # Parpadeo para click
-        left = landmarks[145]
-        right = landmarks[159]
 
-        if (left.y - right.y) < 0.004:
-            pyautogui.click()
-            pyautogui.sleep(1)
-
-    cv2.imshow("Eye Controlled Mouse", frame)
-
-    key = cv2.waitKey(1)
-    if key == 27:
-        break
-
-cam.release()
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    main()
